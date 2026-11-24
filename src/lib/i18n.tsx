@@ -81,6 +81,10 @@ const es = {
   onlineNow: 'En línea ahora',
   statusOnline: 'En línea',
   lastSeen: 'Visto por última vez: {date}',
+  shareInvite: 'Compartir invitación',
+  shareTitle: 'Únete a "{name}" en Organyzer',
+  shareText: 'Te invito a colaborar en Organyzer.',
+  linkCopied: '¡Enlace copiado!',
 } as const
 
 export type TKey = keyof typeof es
@@ -166,6 +170,10 @@ const en: Record<TKey, string> = {
   onlineNow: 'Online now',
   statusOnline: 'Online',
   lastSeen: 'Last seen: {date}',
+  shareInvite: 'Share invite',
+  shareTitle: 'Join "{name}" on Organyzer',
+  shareText: 'I invite you to collaborate on Organyzer.',
+  linkCopied: 'Link copied!',
 }
 
 const dictionaries = { es, en } as const

@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { useI18n } from '../lib/i18n'
 import { createGroup, joinGroup, watchMyGroups, type Group } from '../lib/groups'
@@ -15,6 +15,19 @@ export default function Home() {
   const firstName = user!.displayName?.trim().split(/\s+/)[0] ?? ''
 
   useEffect(() => watchMyGroups(user!.uid, setGroups), [user])
+
+  // Invite links look like /?join=<code>: join the group once, then open it.
+  const [params, setParams] = useSearchParams()
+  const joinCode = useRef(params.get('join'))
+  useEffect(() => {
+    const c = joinCode.current
+    if (!c) return
+    joinCode.current = null
+    setParams({}, { replace: true })
+    joinGroup(c, user!)
+      .then(() => navigate(`/g/${c}`))
+      .catch(() => setInvalidCode(true))
+  }, [navigate, setParams, user])
 
   async function onCreate(e: FormEvent) {
     e.preventDefault()

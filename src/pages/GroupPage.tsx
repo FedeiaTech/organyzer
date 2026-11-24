@@ -31,6 +31,7 @@ export default function GroupPage() {
   const [boards, setBoards] = useState<Board[]>([])
   const [name, setName] = useState('')
   const [copied, setCopied] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
   const [showMembers, setShowMembers] = useState(false)
   const [error, setError] = useState('')
   const { lastSeen, now } = usePresence(groupId!)
@@ -80,6 +81,23 @@ export default function GroupPage() {
     setTimeout(() => setCopied(false), 1500)
   }
 
+  // Native share sheet when available (phones), otherwise copy the invite link.
+  async function shareInvite() {
+    const url = `${window.location.origin}/?join=${groupId}`
+    const data = { title: t('shareTitle', { name: group!.name }), text: t('shareText'), url }
+    try {
+      if (navigator.share) {
+        await navigator.share(data)
+      } else {
+        await navigator.clipboard.writeText(url)
+        setLinkCopied(true)
+        setTimeout(() => setLinkCopied(false), 1500)
+      }
+    } catch {
+      // user dismissed the share sheet: nothing to do
+    }
+  }
+
   if (group === undefined) return <div className="page">{t('loading')}</div>
   if (group === null) {
     return (
@@ -111,6 +129,7 @@ export default function GroupPage() {
       <header className="bar">
         <Link to="/">{t('backToGroups')}</Link>
         <div className="row">
+          <button onClick={shareInvite}>{linkCopied ? t('linkCopied') : t('shareInvite')}</button>
           <button className="ghost" onClick={copyCode}>{copied ? t('copied') : t('copyInvite')}</button>
           {!isCreator && <button className="ghost" onClick={onLeave}>{t('leaveGroup')}</button>}
         </div>

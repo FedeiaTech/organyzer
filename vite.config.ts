@@ -20,8 +20,8 @@ export default defineConfig({
         short_name: 'Organyzer',
         description: 'Organiza ideas en equipo con grupos y pizarras.',
         lang: 'es',
-        theme_color: '#4f46e5',
-        background_color: '#4f46e5',
+        theme_color: '#2563eb',
+        background_color: '#ffffff',
         display: 'standalone',
         start_url: '/',
         icons: [
