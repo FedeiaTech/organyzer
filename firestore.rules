@@ -93,6 +93,15 @@ service cloud.firestore {
           && newRoles().values().hasOnly(['admin', 'guest']);
       }
 
+      // Only admins rename the group, and nothing else changes.
+      function isRename() {
+        return wasAdmin()
+          && onlyTouches(['name'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 100;
+      }
+
       function removedMembers() {
         return resource.data.memberIds.toSet().difference(request.resource.data.memberIds.toSet());
       }
@@ -131,12 +140,35 @@ service cloud.firestore {
         && validProfile(request.resource.data.profiles[uid()]);
 
       allow update: if signedIn()
-        && (isJoining() || isOwnProfileUpdate() || isRoleChange() || isRemoval());
+        && (isJoining() || isOwnProfileUpdate() || isRoleChange() || isRemoval() || isRename());
 
       // Boards: any member can read; only admins create, rename or delete them.
+      // Any member may only "touch" a board (last-edit stamp) when contributing items.
       match /boards/{boardId} {
+        function boardChanged(keys) {
+          return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+        }
+        function stampedByMe() {
+          return request.resource.data.updatedAt == request.time
+            && request.resource.data.updatedBy == request.auth.uid;
+        }
+
         allow read: if isMember(groupId);
-        allow write: if isAdmin(groupId);
+        allow create: if isAdmin(groupId)
+          && request.resource.data.keys().hasOnly(['name', 'createdAt'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 100;
+        allow delete: if isAdmin(groupId);
+        allow update: if (isMember(groupId)
+            && boardChanged(['updatedAt', 'updatedBy'])
+            && stampedByMe())
+          || (isAdmin(groupId)
+            && boardChanged(['name', 'updatedAt', 'updatedBy'])
+            && request.resource.data.name is string
+            && request.resource.data.name.size() > 0
+            && request.resource.data.name.size() <= 100
+            && stampedByMe());
 
         // Items: any member (admin or guest) contributes.
         match /items/{itemId} {

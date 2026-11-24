@@ -2,7 +2,7 @@
 
 Collaborative boards for teams. Create a group, invite people with a code, and organize ideas together on boards made of notes, tables and images, synced in real time. Sign in with Google, install it as an app on your phone.
 
-![version](https://img.shields.io/badge/version-0.1.0-4f46e5) ![license](https://img.shields.io/badge/license-MIT-green)
+![version](https://img.shields.io/badge/version-0.2.0-4f46e5) ![license](https://img.shields.io/badge/license-MIT-green)
 
 ## Features
 

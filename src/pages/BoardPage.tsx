@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { useI18n } from '../lib/i18n'
+import EditableTitle from '../components/EditableTitle'
+import { renameBoard, roleOf, watchBoard, watchGroup, type Board, type Group } from '../lib/groups'
 import {
   COLORS,
   addItem,
@@ -15,11 +17,18 @@ import {
 export default function BoardPage() {
   const { groupId, boardId } = useParams<{ groupId: string; boardId: string }>()
   const { user } = useAuth()
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const [items, setItems] = useState<Item[]>([])
+  const [board, setBoard] = useState<Board | null>(null)
+  const [group, setGroup] = useState<Group | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => watchItems(groupId!, boardId!, setItems), [groupId, boardId])
+  useEffect(() => watchBoard(groupId!, boardId!, setBoard), [groupId, boardId])
+  useEffect(() => watchGroup(groupId!, setGroup), [groupId])
+
+  const isAdmin = !!group && roleOf(group, user!.uid) === 'admin'
+  const lastEdit = (board?.updatedAt ?? board?.createdAt)?.toDate()
 
   const add = (item: Parameters<typeof addItem>[2]) =>
     addItem(groupId!, boardId!, item, user!.uid)
@@ -47,6 +56,19 @@ export default function BoardPage() {
           />
         </div>
       </header>
+
+      {board && (
+        <>
+          <EditableTitle value={board.name} canEdit={isAdmin} onSave={(n) => renameBoard(groupId!, boardId!, n)} />
+          {lastEdit && (
+            <p className="meta">
+              {t('lastEdited', {
+                date: new Intl.DateTimeFormat(lang, { dateStyle: 'medium', timeStyle: 'short' }).format(lastEdit),
+              })}
+            </p>
+          )}
+        </>
+      )}
 
       {items.length === 0 && <p className="muted">{t('emptyBoard')}</p>}
 

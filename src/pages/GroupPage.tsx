@@ -2,10 +2,12 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { useI18n } from '../lib/i18n'
+import EditableTitle from '../components/EditableTitle'
 import {
   createBoard,
   profileOf,
   removeMember,
+  renameGroup,
   roleOf,
   setMemberRole,
   syncMyProfile,
@@ -80,7 +82,11 @@ export default function GroupPage() {
         <button className="ghost" onClick={copyCode}>{copied ? t('copied') : t('copyInvite')}</button>
       </header>
 
-      <h1>{group.name}</h1>
+      <EditableTitle
+        value={group.name}
+        canEdit={isAdmin}
+        onSave={(n) => run(() => renameGroup(group.id, n))}
+      />
       <button className="link" aria-expanded={showMembers} onClick={() => setShowMembers((s) => !s)}>
         {members}
       </button>

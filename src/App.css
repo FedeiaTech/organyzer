@@ -271,7 +271,7 @@ button.ghost {
   opacity: 0.6;
 }
 
-.greeting {
+.greeting-old {
   margin: -20px 0 12px;
   opacity: 0.8;
 }
@@ -328,4 +328,53 @@ button.link:hover {
   background: #4f46e5;
   color: #fff;
   font-weight: 600;
+}
+
+/* ---- titles, greeting spacing and last-edit meta ---- */
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title-row h1,
+.bar h1 {
+  margin: 16px 0 6px;
+}
+
+.greeting {
+  margin: 0 0 16px;
+  opacity: 0.8;
+}
+
+.meta {
+  margin: -2px 0 16px;
+  font-size: 0.78rem;
+  color: #8b8b8b;
+}
+
+button.icon {
+  padding: 4px 8px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.55;
+  font-size: 1.1rem;
+}
+
+button.icon:hover {
+  opacity: 1;
+  background: transparent;
+}
+
+.title-edit input {
+  width: 100%;
+  margin: 16px 0 6px;
+  padding: 8px 12px;
+  border: 1px solid #8886;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-h);
+  font: inherit;
+  font-size: 1.6rem;
+  box-sizing: border-box;
 }

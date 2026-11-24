@@ -10,6 +10,7 @@ import {
   updateDoc,
 } from 'firebase/firestore'
 import { db } from './firebase'
+import { touchBoard } from './groups'
 
 export const COLORS = ['none', 'yellow', 'green', 'blue', 'pink', 'purple', 'orange'] as const
 export type ItemColor = (typeof COLORS)[number]
@@ -46,6 +47,7 @@ export function watchItems(groupId: string, boardId: string, cb: (items: Item[])
 
 export async function addItem(groupId: string, boardId: string, item: NewItem, uid: string) {
   await addDoc(itemsCol(groupId, boardId), { ...item, authorId: uid, createdAt: serverTimestamp() })
+  await touchBoard(groupId, boardId)
 }
 
 export async function updateItem(
@@ -55,10 +57,12 @@ export async function updateItem(
   data: Record<string, unknown>,
 ) {
   await updateDoc(doc(db, 'groups', groupId, 'boards', boardId, 'items', itemId), data)
+  await touchBoard(groupId, boardId)
 }
 
 export async function removeItem(groupId: string, boardId: string, itemId: string) {
   await deleteDoc(doc(db, 'groups', groupId, 'boards', boardId, 'items', itemId))
+  await touchBoard(groupId, boardId)
 }
 
 // Resize in the browser so the data URL stays well under Firestore's 1 MiB doc limit.

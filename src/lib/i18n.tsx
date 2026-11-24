@@ -65,6 +65,8 @@ const es = {
   removeMember: 'Quitar',
   confirmRemove: '¿Quitar a {name} del grupo?',
   actionFailed: 'No se pudo completar la acción.',
+  editName: 'Editar nombre',
+  lastEdited: 'Última edición: {date}',
 } as const
 
 export type TKey = keyof typeof es
@@ -134,6 +136,8 @@ const en: Record<TKey, string> = {
   removeMember: 'Remove',
   confirmRemove: 'Remove {name} from the group?',
   actionFailed: 'The action could not be completed.',
+  editName: 'Edit name',
+  lastEdited: 'Last edited: {date}',
 }
 
 const dictionaries = { es, en } as const

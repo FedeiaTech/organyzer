@@ -12,9 +12,10 @@ import {
   serverTimestamp,
   updateDoc,
   where,
+  type Timestamp,
 } from 'firebase/firestore'
 import type { User } from 'firebase/auth'
-import { db } from './firebase'
+import { auth, db } from './firebase'
 
 export type Role = 'admin' | 'guest'
 
@@ -36,6 +37,9 @@ export interface Group {
 export interface Board {
   id: string
   name: string
+  createdAt?: Timestamp
+  updatedAt?: Timestamp
+  updatedBy?: string
 }
 
 // The creator is always an admin; anyone without an explicit role is a guest.
@@ -112,6 +116,42 @@ export function watchBoards(groupId: string, cb: (boards: Board[]) => void) {
   return onSnapshot(q, (snap) =>
     cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Board, 'id'>) }))),
   )
+}
+
+export async function renameGroup(groupId: string, name: string) {
+  await updateDoc(doc(db, 'groups', groupId), { name })
+}
+
+export function watchBoard(groupId: string, boardId: string, cb: (board: Board | null) => void) {
+  return onSnapshot(
+    doc(db, 'groups', groupId, 'boards', boardId),
+    (d) =>
+      cb(
+        d.exists()
+          ? ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) } as Board)
+          : null,
+      ),
+    () => cb(null),
+  )
+}
+
+export async function renameBoard(groupId: string, boardId: string, name: string) {
+  await updateDoc(doc(db, 'groups', groupId, 'boards', boardId), {
+    name,
+    updatedAt: serverTimestamp(),
+    updatedBy: auth.currentUser!.uid,
+  })
+}
+
+// Stamps the board with the time and author of the latest edit. Best effort:
+// a failed stamp must never block the edit itself.
+export async function touchBoard(groupId: string, boardId: string) {
+  const uid = auth.currentUser?.uid
+  if (!uid) return
+  await updateDoc(doc(db, 'groups', groupId, 'boards', boardId), {
+    updatedAt: serverTimestamp(),
+    updatedBy: uid,
+  }).catch(() => {})
 }
 
 export async function createBoard(groupId: string, name: string) {
