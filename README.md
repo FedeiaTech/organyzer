@@ -2,7 +2,7 @@
 
 Collaborative boards for teams. Create a group, invite people with a code, and organize ideas together on boards made of notes, tables and images, synced in real time. Sign in with Google, install it as an app on your phone.
 
-![version](https://img.shields.io/badge/version-0.5.1-2563eb) ![license](https://img.shields.io/badge/license-MIT-green)
+![version](https://img.shields.io/badge/version-0.6.0-2563eb) ![license](https://img.shields.io/badge/license-MIT-green)
 
 ## Features
 
@@ -10,6 +10,7 @@ Collaborative boards for teams. Create a group, invite people with a code, and o
 - **Groups and boards**: every group has its own boards; join a group with an invite code.
 - **Roles**: the creator is always an admin. Admins manage members (change roles, remove people) and create boards. Guests can read and contribute items.
 - **Notes, checklists, tables and images** with real-time sync (Cloud Firestore). Each item can have its own color, width, text size and header row, and items can be reordered by dragging (touch friendly).
+- **Board templates**: start from blank, brainstorm, task board (to do / doing / done), meeting or weekly plan. Checklists can have a title.
 - **Presence**: see who is online in a group and when everyone was last seen. Boards show a red dot when someone else edited them since your last visit, plus the date, time and author of the last edit.
 - **Housekeeping**: admins rename groups and boards and delete boards; members can leave a group. Destructive actions ask for confirmation.
 - **Share invites**: a share button uses the phone's native share sheet (or copies the link) with an invite link that joins the group on open. Shared links show a preview card (title, description and image) thanks to Open Graph / Twitter meta tags in `index.html`. If you fork the project, replace `https://organyzer.web.app` there with your own domain.

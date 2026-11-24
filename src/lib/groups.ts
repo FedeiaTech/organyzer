@@ -172,9 +172,24 @@ export async function deleteBoard(groupId: string, boardId: string) {
   await deleteDoc(doc(db, 'groups', groupId, 'boards', boardId))
 }
 
-export async function createBoard(groupId: string, name: string) {
-  await addDoc(collection(db, 'groups', groupId, 'boards'), {
-    name,
-    createdAt: serverTimestamp(),
-  })
+// Creates the board and its starting items (from a template) in one atomic batch.
+// Items get an explicit `order` so they keep the template's sequence.
+export async function createBoard(
+  groupId: string,
+  name: string,
+  items: Record<string, unknown>[] = [],
+) {
+  const boardRef = doc(collection(db, 'groups', groupId, 'boards'))
+  const batch = writeBatch(db)
+  batch.set(boardRef, { name, createdAt: serverTimestamp() })
+  const base = Date.now()
+  items.forEach((item, i) =>
+    batch.set(doc(collection(boardRef, 'items')), {
+      ...item,
+      authorId: auth.currentUser!.uid,
+      order: base + i,
+      createdAt: serverTimestamp(),
+    }),
+  )
+  await batch.commit()
 }

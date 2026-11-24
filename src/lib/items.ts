@@ -37,7 +37,7 @@ export type Item = (
   | { id: string; type: 'text'; text: string }
   | { id: string; type: 'image'; src: string }
   | { id: string; type: 'table'; cols: number; cells: string[] }
-  | { id: string; type: 'checklist'; tasks: Task[] }
+  | { id: string; type: 'checklist'; tasks: Task[]; title?: string }
 ) &
   ItemStyle
 
@@ -45,7 +45,7 @@ type NewItem =
   | { type: 'text'; text: string }
   | { type: 'image'; src: string }
   | { type: 'table'; cols: number; cells: string[] }
-  | { type: 'checklist'; tasks: Task[] }
+  | { type: 'checklist'; tasks: Task[]; title?: string }
 
 const itemsCol = (groupId: string, boardId: string) =>
   collection(db, 'groups', groupId, 'boards', boardId, 'items')

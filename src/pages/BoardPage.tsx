@@ -262,6 +262,17 @@ function ChecklistEditor({
 
   return (
     <div className="checklist">
+      <input
+        className="check-title"
+        key={item.title}
+        defaultValue={item.title ?? ''}
+        placeholder={t('listTitle')}
+        maxLength={100}
+        onBlur={(e) => {
+          const title = e.target.value.trim()
+          if (title !== (item.title ?? '')) save({ title })
+        }}
+      />
       {item.tasks.length > 0 && (
         <small className="muted">{done}/{item.tasks.length}</small>
       )}

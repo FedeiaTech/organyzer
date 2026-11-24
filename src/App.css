@@ -519,3 +519,30 @@ button.task-del:hover {
   height: 24px;
   font-size: 0.75rem;
 }
+
+/* ---- templates and checklist title ---- */
+.row select.template-select {
+  max-width: 150px;
+  padding: 8px;
+  border: 1px solid #8886;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.invite-row {
+  margin-top: 20px;
+}
+
+.check-title {
+  width: 100%;
+  margin: 0 0 4px;
+  padding: 4px 28px 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-h);
+  font: inherit;
+  font-weight: 600;
+  box-sizing: border-box;
+}

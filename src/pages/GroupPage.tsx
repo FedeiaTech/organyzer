@@ -5,6 +5,7 @@ import { useI18n } from '../lib/i18n'
 import { formatDateTime } from '../lib/format'
 import EditableTitle from '../components/EditableTitle'
 import { boardStamp, getSeen, hasNews, setSeen } from '../lib/seen'
+import { TEMPLATE_IDS, templateItems, type TemplateId } from '../lib/templates'
 import { ONLINE_WINDOW_MS, usePresence, usePresenceHeartbeat } from '../lib/presence'
 import {
   createBoard,
@@ -32,6 +33,7 @@ export default function GroupPage() {
   const [name, setName] = useState('')
   const [copied, setCopied] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
+  const [template, setTemplate] = useState<TemplateId>('blank')
   const [showMembers, setShowMembers] = useState(false)
   const [error, setError] = useState('')
   const { lastSeen, now } = usePresence(groupId!)
@@ -71,8 +73,9 @@ export default function GroupPage() {
   async function onCreate(e: FormEvent) {
     e.preventDefault()
     if (!name.trim()) return
-    await run(() => createBoard(groupId!, name.trim()))
+    await run(() => createBoard(groupId!, name.trim(), templateItems(template, t)))
     setName('')
+    setTemplate('blank')
   }
 
   async function copyCode() {
@@ -128,11 +131,7 @@ export default function GroupPage() {
     <div className="page">
       <header className="bar">
         <Link to="/">{t('backToGroups')}</Link>
-        <div className="row">
-          <button onClick={shareInvite}>{linkCopied ? t('linkCopied') : t('shareInvite')}</button>
-          <button className="ghost" onClick={copyCode}>{copied ? t('copied') : t('copyInvite')}</button>
-          {!isCreator && <button className="ghost" onClick={onLeave}>{t('leaveGroup')}</button>}
-        </div>
+        {!isCreator && <button className="ghost" onClick={onLeave}>{t('leaveGroup')}</button>}
       </header>
 
       <EditableTitle
@@ -249,9 +248,25 @@ export default function GroupPage() {
       {isAdmin && (
         <form onSubmit={onCreate} className="row">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('newBoardName')} />
+          <select
+            className="template-select"
+            value={template}
+            aria-label={t('chooseTemplate')}
+            title={t('chooseTemplate')}
+            onChange={(e) => setTemplate(e.target.value as TemplateId)}
+          >
+            {TEMPLATE_IDS.map((id) => (
+              <option key={id} value={id}>{t(`tpl_${id}`)}</option>
+            ))}
+          </select>
           <button type="submit">{t('create')}</button>
         </form>
       )}
+
+      <div className="row invite-row">
+        <button onClick={shareInvite}>{linkCopied ? t('linkCopied') : t('shareInvite')}</button>
+        <button className="ghost" onClick={copyCode}>{copied ? t('copied') : t('copyInvite')}</button>
+      </div>
     </div>
   )
 }
