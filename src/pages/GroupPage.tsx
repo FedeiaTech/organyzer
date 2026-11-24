@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { useI18n } from '../lib/i18n'
 import EditableTitle from '../components/EditableTitle'
+import { boardStamp, getSeen, hasNews, setSeen } from '../lib/seen'
 import {
   createBoard,
   profileOf,
@@ -31,6 +32,14 @@ export default function GroupPage() {
 
   useEffect(() => watchGroup(groupId!, setGroup), [groupId])
   useEffect(() => watchBoards(groupId!, setBoards), [groupId])
+
+  // First time this device sees a board: record it as seen so only later edits show a dot.
+  useEffect(() => {
+    for (const b of boards) {
+      const stamp = boardStamp(b)
+      if (stamp !== null && getSeen(user!.uid, b.id) === null) setSeen(user!.uid, b.id, stamp)
+    }
+  }, [boards, user])
 
   // Keep my name / photo in the group up to date (also fills it for older groups).
   const mine = group?.profiles?.[user!.uid]
@@ -151,7 +160,10 @@ export default function GroupPage() {
       <h2>{t('boards')}</h2>
       <ul className="cards">
         {boards.map((b) => (
-          <li key={b.id}><Link to={`/g/${groupId}/b/${b.id}`}>{b.name}</Link></li>
+          <li key={b.id}>
+            <Link to={`/g/${groupId}/b/${b.id}`}>{b.name}</Link>
+            {hasNews(b, user!.uid) && <span className="dot" role="img" aria-label={t('boardUpdated')} title={t('boardUpdated')} />}
+          </li>
         ))}
         {boards.length === 0 && <p className="muted">{t('noBoards')}</p>}
       </ul>

@@ -378,3 +378,13 @@ button.icon:hover {
   font-size: 1.6rem;
   box-sizing: border-box;
 }
+
+/* ---- "modified" dot on boards ---- */
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-left: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+}

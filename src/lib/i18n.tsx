@@ -67,6 +67,8 @@ const es = {
   actionFailed: 'No se pudo completar la acción.',
   editName: 'Editar nombre',
   lastEdited: 'Última edición: {date}',
+  lastEditedBy: 'Última edición: {date} · {name}',
+  boardUpdated: 'Modificada desde tu última visita',
 } as const
 
 export type TKey = keyof typeof es
@@ -138,6 +140,8 @@ const en: Record<TKey, string> = {
   actionFailed: 'The action could not be completed.',
   editName: 'Edit name',
   lastEdited: 'Last edited: {date}',
+  lastEditedBy: 'Last edited: {date} · {name}',
+  boardUpdated: 'Updated since your last visit',
 }
 
 const dictionaries = { es, en } as const

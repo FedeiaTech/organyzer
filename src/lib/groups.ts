@@ -114,7 +114,11 @@ export function watchGroup(groupId: string, cb: (group: Group | null) => void) {
 export function watchBoards(groupId: string, cb: (boards: Board[]) => void) {
   const q = query(collection(db, 'groups', groupId, 'boards'), orderBy('createdAt'))
   return onSnapshot(q, (snap) =>
-    cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Board, 'id'>) }))),
+    cb(
+      snap.docs.map(
+        (d) => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) }) as Board,
+      ),
+    ),
   )
 }
 

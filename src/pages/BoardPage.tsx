@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { useI18n } from '../lib/i18n'
 import EditableTitle from '../components/EditableTitle'
+import { boardStamp, setSeen } from '../lib/seen'
 import { renameBoard, roleOf, watchBoard, watchGroup, type Board, type Group } from '../lib/groups'
 import {
   COLORS,
@@ -29,6 +30,16 @@ export default function BoardPage() {
 
   const isAdmin = !!group && roleOf(group, user!.uid) === 'admin'
   const lastEdit = (board?.updatedAt ?? board?.createdAt)?.toDate()
+  const editor = board?.updatedBy
+    ? (group?.profiles?.[board.updatedBy]?.name || t('unnamed')) +
+      (board.updatedBy === user!.uid ? ` ${t('you')}` : '')
+    : ''
+
+  // Being on the board counts as having seen its latest edit.
+  const stamp = board ? boardStamp(board) : null
+  useEffect(() => {
+    if (stamp !== null) setSeen(user!.uid, boardId!, stamp)
+  }, [stamp, boardId, user])
 
   const add = (item: Parameters<typeof addItem>[2]) =>
     addItem(groupId!, boardId!, item, user!.uid)
@@ -62,8 +73,9 @@ export default function BoardPage() {
           <EditableTitle value={board.name} canEdit={isAdmin} onSave={(n) => renameBoard(groupId!, boardId!, n)} />
           {lastEdit && (
             <p className="meta">
-              {t('lastEdited', {
+              {t(editor ? 'lastEditedBy' : 'lastEdited', {
                 date: new Intl.DateTimeFormat(lang, { dateStyle: 'medium', timeStyle: 'short' }).format(lastEdit),
+                name: editor,
               })}
             </p>
           )}
