@@ -1,0 +1,148 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // ---- membership helpers for sub-collections (boards, items) ----
+    function groupData(groupId) {
+      return get(/databases/$(database)/documents/groups/$(groupId)).data;
+    }
+
+    function isMember(groupId) {
+      return signedIn() && request.auth.uid in groupData(groupId).memberIds;
+    }
+
+    // The creator is always an admin; legacy groups without a roles map treat everyone else as guest.
+    function isAdmin(groupId) {
+      return isMember(groupId)
+        && (request.auth.uid == groupData(groupId).ownerId
+            || groupData(groupId).get('roles', {}).get(request.auth.uid, 'guest') == 'admin');
+    }
+
+    match /groups/{groupId} {
+
+      // ---- helpers for the group document itself ----
+      function uid() {
+        return request.auth.uid;
+      }
+      function oldRoles() {
+        return resource.data.get('roles', {});
+      }
+      function oldProfiles() {
+        return resource.data.get('profiles', {});
+      }
+      function newRoles() {
+        return request.resource.data.get('roles', {});
+      }
+      function newProfiles() {
+        return request.resource.data.get('profiles', {});
+      }
+      function changedRoles() {
+        return newRoles().diff(oldRoles()).affectedKeys();
+      }
+      function changedProfiles() {
+        return newProfiles().diff(oldProfiles()).affectedKeys();
+      }
+      function onlyTouches(keys) {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+      }
+      function wasMember() {
+        return uid() in resource.data.memberIds;
+      }
+      function wasAdmin() {
+        return wasMember()
+          && (uid() == resource.data.ownerId || oldRoles().get(uid(), 'guest') == 'admin');
+      }
+      function validProfile(p) {
+        return p is map
+          && p.keys().hasOnly(['name', 'photoURL'])
+          && p.name is string && p.name.size() <= 100
+          && p.photoURL is string && p.photoURL.size() <= 500;
+      }
+
+      // A signed-in user joins by adding only themselves as a guest.
+      function isJoining() {
+        return onlyTouches(['memberIds', 'roles', 'profiles'])
+          && !(uid() in resource.data.memberIds)
+          && request.resource.data.memberIds.size() == resource.data.memberIds.size() + 1
+          && request.resource.data.memberIds.hasAll(resource.data.memberIds)
+          && uid() in request.resource.data.memberIds
+          && changedRoles().hasOnly([uid()])
+          && newRoles()[uid()] == 'guest'
+          && changedProfiles().hasOnly([uid()])
+          && validProfile(newProfiles()[uid()]);
+      }
+
+      // A member may refresh only their own profile (name / photo).
+      function isOwnProfileUpdate() {
+        return wasMember()
+          && onlyTouches(['profiles'])
+          && changedProfiles().hasOnly([uid()])
+          && validProfile(newProfiles()[uid()]);
+      }
+
+      // Admins change roles of members, never the creator's.
+      function isRoleChange() {
+        return wasAdmin()
+          && onlyTouches(['roles'])
+          && changedRoles().hasOnly(resource.data.memberIds)
+          && !changedRoles().hasAny([resource.data.ownerId])
+          && newRoles().values().hasOnly(['admin', 'guest']);
+      }
+
+      function removedMembers() {
+        return resource.data.memberIds.toSet().difference(request.resource.data.memberIds.toSet());
+      }
+
+      // Exactly one member leaves: an admin removes someone (never the creator),
+      // or a member removes themselves (the creator cannot leave).
+      // The only role/profile entries that may change are the removed member's,
+      // and they must be gone afterwards.
+      function isRemoval() {
+        return onlyTouches(['memberIds', 'roles', 'profiles'])
+          && request.resource.data.memberIds.size() == resource.data.memberIds.size() - 1
+          && resource.data.memberIds.hasAll(request.resource.data.memberIds)
+          && resource.data.ownerId in request.resource.data.memberIds
+          && changedRoles().hasOnly(removedMembers())
+          && changedProfiles().hasOnly(removedMembers())
+          && !newRoles().keys().hasAny(removedMembers())
+          && !newProfiles().keys().hasAny(removedMembers())
+          && (wasAdmin() || (wasMember() && removedMembers().hasOnly([uid()])));
+      }
+
+      // get by id is open to signed-in users so the id works as an invite code;
+      // listing is only possible through a memberIds query.
+      allow get: if signedIn();
+      allow list: if signedIn() && request.auth.uid in resource.data.memberIds;
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['name', 'ownerId', 'memberIds', 'roles', 'profiles', 'createdAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 100
+        && request.resource.data.ownerId == uid()
+        && request.resource.data.memberIds == [uid()]
+        && request.resource.data.roles.keys().hasOnly([uid()])
+        && request.resource.data.roles[uid()] == 'admin'
+        && request.resource.data.profiles.keys().hasOnly([uid()])
+        && validProfile(request.resource.data.profiles[uid()]);
+
+      allow update: if signedIn()
+        && (isJoining() || isOwnProfileUpdate() || isRoleChange() || isRemoval());
+
+      // Boards: any member can read; only admins create, rename or delete them.
+      match /boards/{boardId} {
+        allow read: if isMember(groupId);
+        allow write: if isAdmin(groupId);
+
+        // Items: any member (admin or guest) contributes.
+        match /items/{itemId} {
+          allow read, write: if isMember(groupId);
+        }
+      }
+    }
+  }
+}
