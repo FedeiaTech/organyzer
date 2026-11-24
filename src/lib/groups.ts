@@ -3,9 +3,12 @@ import {
   arrayRemove,
   arrayUnion,
   collection,
+  deleteDoc,
   deleteField,
   doc,
   getDoc,
+  getDocs,
+  writeBatch,
   onSnapshot,
   orderBy,
   query,
@@ -156,6 +159,17 @@ export async function touchBoard(groupId: string, boardId: string) {
     updatedAt: serverTimestamp(),
     updatedBy: uid,
   }).catch(() => {})
+}
+
+// Firestore does not cascade deletes, so the items go first and the board last.
+export async function deleteBoard(groupId: string, boardId: string) {
+  const items = await getDocs(collection(db, 'groups', groupId, 'boards', boardId, 'items'))
+  for (let i = 0; i < items.docs.length; i += 400) {
+    const batch = writeBatch(db)
+    items.docs.slice(i, i + 400).forEach((d) => batch.delete(d.ref))
+    await batch.commit()
+  }
+  await deleteDoc(doc(db, 'groups', groupId, 'boards', boardId))
 }
 
 export async function createBoard(groupId: string, name: string) {

@@ -2,14 +2,16 @@
 
 Collaborative boards for teams. Create a group, invite people with a code, and organize ideas together on boards made of notes, tables and images, synced in real time. Sign in with Google, install it as an app on your phone.
 
-![version](https://img.shields.io/badge/version-0.3.0-4f46e5) ![license](https://img.shields.io/badge/license-MIT-green)
+![version](https://img.shields.io/badge/version-0.4.0-4f46e5) ![license](https://img.shields.io/badge/license-MIT-green)
 
 ## Features
 
 - **Google sign-in** through Firebase Authentication.
 - **Groups and boards**: every group has its own boards; join a group with an invite code.
 - **Roles**: the creator is always an admin. Admins manage members (change roles, remove people) and create boards. Guests can read and contribute items.
-- **Notes, tables and images** with real-time sync (Cloud Firestore). Each item can have its own color, width, text size and header row.
+- **Notes, checklists, tables and images** with real-time sync (Cloud Firestore). Each item can have its own color, width, text size and header row, and items can be reordered by dragging (touch friendly).
+- **Presence**: see who is online in a group and when everyone was last seen. Boards show a red dot when someone else edited them since your last visit, plus the date, time and author of the last edit.
+- **Housekeeping**: admins rename groups and boards and delete boards; members can leave a group. Destructive actions ask for confirmation.
 - **Installable PWA**: works on any phone or desktop browser, no app store needed.
 - **Light, dark and automatic theme**, and **Spanish / English** interface, both chosen from the footer.
 
@@ -80,10 +82,8 @@ Images are resized in the browser and stored inside Firestore documents, so no p
 ## Roadmap
 
 - Command palette (Ctrl/Cmd+K)
-- Live presence (who is online)
 - Board templates
 - Comments and reactions
-- Final app icons
 
 ## License
 

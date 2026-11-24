@@ -69,6 +69,18 @@ const es = {
   lastEdited: 'Última edición: {date}',
   lastEditedBy: 'Última edición: {date} · {name}',
   boardUpdated: 'Modificada desde tu última visita',
+  deleteBoard: 'Eliminar pizarra',
+  confirmDeleteBoard: '¿Eliminar la pizarra "{name}" y todo su contenido? Esta acción no se puede deshacer.',
+  leaveGroup: 'Salir del grupo',
+  confirmLeave: '¿Salir del grupo "{name}"? Para volver a entrar necesitarás el código de invitación.',
+  confirmSignOut: '¿Cerrar sesión?',
+  addChecklist: '+ Lista',
+  addTask: 'Agregar tarea…',
+  deleteTask: 'Eliminar tarea',
+  dragHandle: 'Arrastrar para reordenar',
+  onlineNow: 'En línea ahora',
+  statusOnline: 'En línea',
+  lastSeen: 'Visto por última vez: {date}',
 } as const
 
 export type TKey = keyof typeof es
@@ -142,6 +154,18 @@ const en: Record<TKey, string> = {
   lastEdited: 'Last edited: {date}',
   lastEditedBy: 'Last edited: {date} · {name}',
   boardUpdated: 'Updated since your last visit',
+  deleteBoard: 'Delete board',
+  confirmDeleteBoard: 'Delete the board "{name}" and all its content? This cannot be undone.',
+  leaveGroup: 'Leave group',
+  confirmLeave: 'Leave the group "{name}"? You will need the invite code to join again.',
+  confirmSignOut: 'Sign out?',
+  addChecklist: '+ List',
+  addTask: 'Add a task…',
+  deleteTask: 'Delete task',
+  dragHandle: 'Drag to reorder',
+  onlineNow: 'Online now',
+  statusOnline: 'Online',
+  lastSeen: 'Last seen: {date}',
 }
 
 const dictionaries = { es, en } as const

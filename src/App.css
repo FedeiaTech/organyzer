@@ -388,3 +388,134 @@ button.icon:hover {
   border-radius: 50%;
   background: #ef4444;
 }
+
+/* ---- splash ---- */
+.splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: linear-gradient(135deg, #6366f1, #4338ca);
+  animation: splash-in 0.5s ease-out;
+}
+
+.splash-logo {
+  border-radius: 24px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+  animation: splash-pop 0.7s ease-out;
+}
+
+.splash-name {
+  color: #fff;
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+@keyframes splash-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes splash-pop {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash,
+  .splash-logo { animation: none; }
+}
+
+/* ---- drag handle, checklist, presence ---- */
+.item .x.handle {
+  cursor: grab;
+  touch-action: none;
+}
+
+.item .x.handle:active {
+  cursor: grabbing;
+}
+
+.tasks {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 8px;
+  display: grid;
+  gap: 4px;
+}
+
+.tasks li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tasks li.done .task-text {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+.task-text,
+.task-new {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-bottom: 1px solid #8884;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.task-new {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.tasks input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+button.task-del {
+  padding: 0 8px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.5;
+  font-size: 1.1rem;
+}
+
+button.task-del:hover {
+  opacity: 1;
+  background: transparent;
+}
+
+.member-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.online,
+.online-label {
+  color: #22c55e;
+  font-size: 0.8rem;
+}
+
+.online-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 4px;
+}
+
+.mini-avatar.small {
+  width: 24px;
+  height: 24px;
+  font-size: 0.75rem;
+}

@@ -142,6 +142,15 @@ service cloud.firestore {
       allow update: if signedIn()
         && (isJoining() || isOwnProfileUpdate() || isRoleChange() || isRemoval() || isRename());
 
+      // Presence: members read everyone's last-seen; each member writes only their own.
+      match /presence/{userId} {
+        allow read: if isMember(groupId);
+        allow create, update: if isMember(groupId)
+          && userId == request.auth.uid
+          && request.resource.data.keys().hasOnly(['lastSeen'])
+          && request.resource.data.lastSeen == request.time;
+      }
+
       // Boards: any member can read; only admins create, rename or delete them.
       // Any member may only "touch" a board (last-edit stamp) when contributing items.
       match /boards/{boardId} {

@@ -1,7 +1,26 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useAuth } from '../lib/AuthContext'
 import { useI18n } from '../lib/i18n'
+import { formatDateTime } from '../lib/format'
+import { usePresenceHeartbeat } from '../lib/presence'
 import EditableTitle from '../components/EditableTitle'
 import { boardStamp, setSeen } from '../lib/seen'
 import { renameBoard, roleOf, watchBoard, watchGroup, type Board, type Group } from '../lib/groups'
@@ -9,11 +28,15 @@ import {
   COLORS,
   addItem,
   fileToResizedDataUrl,
+  orderBetween,
   removeItem,
   updateItem,
   watchItems,
   type Item,
+  type Task,
 } from '../lib/items'
+
+type Save = (data: Record<string, unknown>) => Promise<void>
 
 export default function BoardPage() {
   const { groupId, boardId } = useParams<{ groupId: string; boardId: string }>()
@@ -23,6 +46,8 @@ export default function BoardPage() {
   const [board, setBoard] = useState<Board | null>(null)
   const [group, setGroup] = useState<Group | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  usePresenceHeartbeat(groupId!, user!.uid)
 
   useEffect(() => watchItems(groupId!, boardId!, setItems), [groupId, boardId])
   useEffect(() => watchBoard(groupId!, boardId!, setBoard), [groupId, boardId])
@@ -41,6 +66,23 @@ export default function BoardPage() {
     if (stamp !== null) setSeen(user!.uid, boardId!, stamp)
   }, [stamp, boardId, user])
 
+  // The handle starts a drag; a small distance keeps plain taps working on touch screens.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  function onDragEnd({ active, over }: DragEndEvent) {
+    if (!over || active.id === over.id) return
+    const from = items.findIndex((i) => i.id === active.id)
+    const to = items.findIndex((i) => i.id === over.id)
+    if (from < 0 || to < 0) return
+    const moved = arrayMove(items, from, to)
+    updateItem(groupId!, boardId!, String(active.id), {
+      order: orderBetween(moved[to - 1], moved[to + 1]),
+    })
+  }
+
   const add = (item: Parameters<typeof addItem>[2]) =>
     addItem(groupId!, boardId!, item, user!.uid)
 
@@ -56,6 +98,7 @@ export default function BoardPage() {
         <Link to={`/g/${groupId}`}>{t('backToBoards')}</Link>
         <div className="row">
           <button onClick={() => add({ type: 'text', text: '' })}>{t('addNote')}</button>
+          <button onClick={() => add({ type: 'checklist', tasks: [] })}>{t('addChecklist')}</button>
           <button onClick={() => add({ type: 'table', cols: 2, cells: ['', '', '', ''] })}>{t('addTable')}</button>
           <button onClick={() => fileRef.current?.click()}>{t('addImage')}</button>
           <input
@@ -74,7 +117,7 @@ export default function BoardPage() {
           {lastEdit && (
             <p className="meta">
               {t(editor ? 'lastEditedBy' : 'lastEdited', {
-                date: new Intl.DateTimeFormat(lang, { dateStyle: 'medium', timeStyle: 'short' }).format(lastEdit),
+                date: formatDateTime(lang, lastEdit),
                 name: editor,
               })}
             </p>
@@ -84,11 +127,15 @@ export default function BoardPage() {
 
       {items.length === 0 && <p className="muted">{t('emptyBoard')}</p>}
 
-      <div className="grid">
-        {items.map((item) => (
-          <ItemCard key={item.id} item={item} groupId={groupId!} boardId={boardId!} />
-        ))}
-      </div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+        <SortableContext items={items.map((i) => i.id)} strategy={rectSortingStrategy}>
+          <div className="grid">
+            {items.map((item) => (
+              <ItemCard key={item.id} item={item} groupId={groupId!} boardId={boardId!} />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
     </div>
   )
 }
@@ -96,15 +143,36 @@ export default function BoardPage() {
 function ItemCard({ item, groupId, boardId }: { item: Item; groupId: string; boardId: string }) {
   const { t } = useI18n()
   const [open, setOpen] = useState(false)
-  const save = (data: Record<string, unknown>) => updateItem(groupId, boardId, item.id, data)
+  const save: Save = (data) => updateItem(groupId, boardId, item.id, data)
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
+    useSortable({ id: item.id })
 
   const color = item.color ?? 'none'
   const span = item.span ?? 1
   const fontSize = item.fontSize ?? 'm'
 
   return (
-    <div className={`item c-${color} span-${span}`}>
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.6 : 1,
+        zIndex: isDragging ? 2 : undefined,
+      }}
+      className={`item c-${color} span-${span}`}
+    >
       <div className="item-actions">
+        <button
+          ref={setActivatorNodeRef}
+          className="x handle"
+          aria-label={t('dragHandle')}
+          title={t('dragHandle')}
+          {...attributes}
+          {...listeners}
+        >
+          ⠿
+        </button>
         <button className="x" aria-label={t('options')} onClick={() => setOpen((o) => !o)}>⚙</button>
         <button className="x" aria-label={t('delete')} onClick={() => removeItem(groupId, boardId, item.id)}>×</button>
       </div>
@@ -163,6 +231,71 @@ function ItemCard({ item, groupId, boardId }: { item: Item; groupId: string; boa
       {item.type === 'image' && <img src={item.src} alt="" />}
 
       {item.type === 'table' && <TableEditor item={item} save={save} />}
+
+      {item.type === 'checklist' && <ChecklistEditor item={item} save={save} />}
+    </div>
+  )
+}
+
+function ChecklistEditor({
+  item,
+  save,
+}: {
+  item: Extract<Item, { type: 'checklist' }>
+  save: Save
+}) {
+  const { t } = useI18n()
+  const [draft, setDraft] = useState('')
+  const done = item.tasks.filter((task) => task.done).length
+
+  const setTasks = (tasks: Task[]) => save({ tasks })
+  const patch = (id: string, change: Partial<Task>) =>
+    setTasks(item.tasks.map((task) => (task.id === id ? { ...task, ...change } : task)))
+
+  function onAdd(e: FormEvent) {
+    e.preventDefault()
+    const text = draft.trim()
+    if (!text) return
+    setTasks([...item.tasks, { id: crypto.randomUUID(), text, done: false }])
+    setDraft('')
+  }
+
+  return (
+    <div className="checklist">
+      {item.tasks.length > 0 && (
+        <small className="muted">{done}/{item.tasks.length}</small>
+      )}
+      <ul className="tasks">
+        {item.tasks.map((task) => (
+          <li key={task.id} className={task.done ? 'done' : ''}>
+            <input type="checkbox" checked={task.done} onChange={() => patch(task.id, { done: !task.done })} />
+            <input
+              className="task-text"
+              key={task.text}
+              defaultValue={task.text}
+              onBlur={(e) => {
+                const text = e.target.value.trim()
+                if (text && text !== task.text) patch(task.id, { text })
+              }}
+            />
+            <button
+              className="task-del"
+              aria-label={t('deleteTask')}
+              onClick={() => setTasks(item.tasks.filter((x) => x.id !== task.id))}
+            >
+              ×
+            </button>
+          </li>
+        ))}
+      </ul>
+      <form onSubmit={onAdd}>
+        <input
+          className="task-new"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder={t('addTask')}
+        />
+      </form>
     </div>
   )
 }
@@ -172,7 +305,7 @@ function TableEditor({
   save,
 }: {
   item: Extract<Item, { type: 'table' }>
-  save: (data: Record<string, unknown>) => Promise<void>
+  save: Save
 }) {
   const { t } = useI18n()
   const rows = item.cells.length / item.cols

@@ -1,11 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { useI18n } from '../lib/i18n'
+import { formatDateTime } from '../lib/format'
 import EditableTitle from '../components/EditableTitle'
 import { boardStamp, getSeen, hasNews, setSeen } from '../lib/seen'
+import { ONLINE_WINDOW_MS, usePresence, usePresenceHeartbeat } from '../lib/presence'
 import {
   createBoard,
+  deleteBoard,
   profileOf,
   removeMember,
   renameGroup,
@@ -22,13 +25,17 @@ import {
 export default function GroupPage() {
   const { groupId } = useParams<{ groupId: string }>()
   const { user } = useAuth()
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
+  const navigate = useNavigate()
   const [group, setGroup] = useState<Group | null | undefined>(undefined)
   const [boards, setBoards] = useState<Board[]>([])
   const [name, setName] = useState('')
   const [copied, setCopied] = useState(false)
   const [showMembers, setShowMembers] = useState(false)
   const [error, setError] = useState('')
+  const { lastSeen, now } = usePresence(groupId!)
+
+  usePresenceHeartbeat(groupId!, user!.uid)
 
   useEffect(() => watchGroup(groupId!, setGroup), [groupId])
   useEffect(() => watchBoards(groupId!, setBoards), [groupId])
@@ -49,12 +56,14 @@ export default function GroupPage() {
     if (needsSync) syncMyProfile(groupId!, user!).catch(() => {})
   }, [needsSync, groupId, user])
 
-  async function run(action: () => Promise<void>) {
+  async function run(action: () => Promise<void>): Promise<boolean> {
     setError('')
     try {
       await action()
+      return true
     } catch {
       setError(t('actionFailed'))
+      return false
     }
   }
 
@@ -82,23 +91,56 @@ export default function GroupPage() {
   }
 
   const isAdmin = roleOf(group, user!.uid) === 'admin'
+  const isCreator = group.ownerId === user!.uid
   const members = t(group.memberIds.length === 1 ? 'members_one' : 'members_other', { n: group.memberIds.length })
+  const isOnline = (id: string) => lastSeen[id] !== undefined && now - lastSeen[id] < ONLINE_WINDOW_MS
+  const onlineIds = group.memberIds.filter(isOnline)
+
+  async function onLeave() {
+    if (!window.confirm(t('confirmLeave', { name: group!.name }))) return
+    if (await run(() => removeMember(group!.id, user!.uid))) navigate('/')
+  }
+
+  async function onDeleteBoard(b: Board) {
+    if (!window.confirm(t('confirmDeleteBoard', { name: b.name }))) return
+    await run(() => deleteBoard(group!.id, b.id))
+  }
 
   return (
     <div className="page">
       <header className="bar">
         <Link to="/">{t('backToGroups')}</Link>
-        <button className="ghost" onClick={copyCode}>{copied ? t('copied') : t('copyInvite')}</button>
+        <div className="row">
+          <button className="ghost" onClick={copyCode}>{copied ? t('copied') : t('copyInvite')}</button>
+          {!isCreator && <button className="ghost" onClick={onLeave}>{t('leaveGroup')}</button>}
+        </div>
       </header>
 
       <EditableTitle
         value={group.name}
         canEdit={isAdmin}
-        onSave={(n) => run(() => renameGroup(group.id, n))}
+        onSave={async (n) => {
+          await run(() => renameGroup(group.id, n))
+        }}
       />
       <button className="link" aria-expanded={showMembers} onClick={() => setShowMembers((s) => !s)}>
         {members}
       </button>
+
+      {onlineIds.length > 0 && (
+        <div className="online-row" aria-label={t('onlineNow')}>
+          <span className="online-label">● {t('onlineNow')}</span>
+          {onlineIds.map((id) => {
+            const profile = group.profiles?.[id]
+            const label = profile?.name || t('unnamed')
+            return profile?.photoURL ? (
+              <img key={id} className="mini-avatar small" src={profile.photoURL} alt={label} title={label} referrerPolicy="no-referrer" />
+            ) : (
+              <span key={id} className="mini-avatar small fallback" title={label}>{label.charAt(0).toUpperCase()}</span>
+            )
+          })}
+        </div>
+      )}
 
       {showMembers && (
         <section className="members" aria-label={t('membersTitle')}>
@@ -108,8 +150,9 @@ export default function GroupPage() {
               const profile = group.profiles?.[id]
               const label = profile?.name || t('unnamed')
               const role = roleOf(group, id)
-              const isCreator = id === group.ownerId
-              const canManage = isAdmin && !isCreator
+              const memberIsCreator = id === group.ownerId
+              const canManage = isAdmin && !memberIsCreator
+              const seen = lastSeen[id]
               return (
                 <li key={id}>
                   <span className="member">
@@ -118,12 +161,21 @@ export default function GroupPage() {
                     ) : (
                       <span className="mini-avatar fallback">{label.charAt(0).toUpperCase()}</span>
                     )}
-                    <span>
-                      {label} {id === user!.uid && <small className="muted">{t('you')}</small>}
+                    <span className="member-info">
+                      <span>
+                        {label} {id === user!.uid && <small className="muted">{t('you')}</small>}
+                      </span>
+                      {isOnline(id) ? (
+                        <small className="online">● {t('statusOnline')}</small>
+                      ) : (
+                        seen !== undefined && (
+                          <small className="muted">{t('lastSeen', { date: formatDateTime(lang, seen) })}</small>
+                        )
+                      )}
                     </span>
                   </span>
                   <span className="member-actions">
-                    {isCreator && <small className="muted">{t('creator')}</small>}
+                    {memberIsCreator && <small className="muted">{t('creator')}</small>}
                     {canManage ? (
                       <>
                         <select
@@ -161,8 +213,15 @@ export default function GroupPage() {
       <ul className="cards">
         {boards.map((b) => (
           <li key={b.id}>
-            <Link to={`/g/${groupId}/b/${b.id}`}>{b.name}</Link>
-            {hasNews(b, user!.uid) && <span className="dot" role="img" aria-label={t('boardUpdated')} title={t('boardUpdated')} />}
+            <span>
+              <Link to={`/g/${groupId}/b/${b.id}`}>{b.name}</Link>
+              {hasNews(b, user!.uid) && <span className="dot" role="img" aria-label={t('boardUpdated')} title={t('boardUpdated')} />}
+            </span>
+            {isAdmin && (
+              <button className="icon" aria-label={t('deleteBoard')} title={t('deleteBoard')} onClick={() => onDeleteBoard(b)}>
+                🗑
+              </button>
+            )}
           </li>
         ))}
         {boards.length === 0 && <p className="muted">{t('noBoards')}</p>}

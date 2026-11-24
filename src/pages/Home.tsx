@@ -42,7 +42,7 @@ export default function Home() {
           <h1>Organyzer</h1>
           <p className="greeting">{firstName ? t('greeting', { name: firstName }) : t('greetingAnon')}</p>
         </div>
-        <button className="ghost" onClick={logOut}>{t('signOut')}</button>
+        <button className="ghost" onClick={() => window.confirm(t('confirmSignOut')) && logOut()}>{t('signOut')}</button>
       </header>
 
       <h2>{t('yourGroups')}</h2>
