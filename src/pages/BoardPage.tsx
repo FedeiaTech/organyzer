@@ -22,6 +22,7 @@ import { useI18n } from '../lib/i18n'
 import { formatDateTime } from '../lib/format'
 import { usePresenceHeartbeat } from '../lib/presence'
 import EditableTitle from '../components/EditableTitle'
+import AddMenu from '../components/AddMenu'
 import { boardStamp, setSeen } from '../lib/seen'
 import { renameBoard, roleOf, watchBoard, watchGroup, type Board, type Group } from '../lib/groups'
 import {
@@ -96,19 +97,6 @@ export default function BoardPage() {
     <div className="page wide">
       <header className="bar">
         <Link to={`/g/${groupId}`}>{t('backToBoards')}</Link>
-        <div className="row">
-          <button onClick={() => add({ type: 'text', text: '' })}>{t('addNote')}</button>
-          <button onClick={() => add({ type: 'checklist', tasks: [] })}>{t('addChecklist')}</button>
-          <button onClick={() => add({ type: 'table', cols: 2, cells: ['', '', '', ''] })}>{t('addTable')}</button>
-          <button onClick={() => fileRef.current?.click()}>{t('addImage')}</button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            hidden
-            onChange={(e) => onPickImage(e.target.files?.[0])}
-          />
-        </div>
       </header>
 
       {board && (
@@ -124,6 +112,23 @@ export default function BoardPage() {
           )}
         </>
       )}
+
+      <AddMenu
+        label={t('addMenu')}
+        options={[
+          { id: 'text', icon: '📝', label: t('addNote'), onSelect: () => add({ type: 'text', text: '' }) },
+          { id: 'checklist', icon: '✅', label: t('addChecklist'), onSelect: () => add({ type: 'checklist', tasks: [] }) },
+          { id: 'table', icon: '▦', label: t('addTable'), onSelect: () => add({ type: 'table', cols: 2, cells: ['', '', '', ''] }) },
+          { id: 'image', icon: '🖼', label: t('addImage'), onSelect: () => fileRef.current?.click() },
+        ]}
+      />
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => onPickImage(e.target.files?.[0])}
+      />
 
       {items.length === 0 && <p className="muted">{t('emptyBoard')}</p>}
 

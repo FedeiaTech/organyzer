@@ -546,3 +546,43 @@ button.task-del:hover {
   font-weight: 600;
   box-sizing: border-box;
 }
+
+/* ---- "Add" dropdown ---- */
+.add-menu {
+  position: relative;
+  display: inline-block;
+  margin: 0 0 16px;
+}
+
+.add-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  min-width: 190px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--bg);
+  border: 1px solid #8886;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.add-list button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 0.95rem;
+  text-align: left;
+}
+
+.add-list button:hover,
+.add-list button:focus-visible {
+  background: var(--accent-bg);
+}
