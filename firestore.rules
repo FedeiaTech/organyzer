@@ -26,17 +26,35 @@ service cloud.firestore {
     // It can only grow and never past the cap; image items require it to grow with them.
     match /usage/{userId} {
       function validUsage() {
-        return request.resource.data.keys().hasOnly(['imageBytes', 'lastImageId'])
+        return request.resource.data.keys().hasOnly(['imageBytes', 'lastImageId', 'lastRemoved'])
           && (!('lastImageId' in request.resource.data) || request.resource.data.lastImageId is string)
+          && (!('lastRemoved' in request.resource.data) || request.resource.data.lastRemoved is map)
           && request.resource.data.imageBytes is number
           && request.resource.data.imageBytes >= 0
           && request.resource.data.imageBytes <= 30000000;
+      }
+      // Path of the image item the user says they deleted in this same write.
+      function removedPath() {
+        let r = request.resource.data.lastRemoved;
+        return /databases/$(database)/documents/groups/$(r.g)/boards/$(r.b)/items/$(r.i);
+      }
+      // The counter may only go DOWN together with the deletion of one of the user's own
+      // image items, and by exactly that image's size (so storage is refunded, never invented).
+      function refundOk() {
+        return 'lastRemoved' in request.resource.data
+          && request.resource.data.lastRemoved is map
+          && request.resource.data.lastRemoved.keys().hasOnly(['g', 'b', 'i'])
+          && exists(removedPath())
+          && !existsAfter(removedPath())
+          && get(removedPath()).data.get('type', '') == 'image'
+          && get(removedPath()).data.get('authorId', '') == request.auth.uid
+          && resource.data.imageBytes - request.resource.data.imageBytes == get(removedPath()).data.src.size();
       }
 
       allow read: if signedIn() && userId == request.auth.uid;
       allow create: if signedIn() && userId == request.auth.uid && validUsage();
       allow update: if signedIn() && userId == request.auth.uid && validUsage()
-        && request.resource.data.imageBytes >= resource.data.imageBytes;
+        && (request.resource.data.imageBytes >= resource.data.imageBytes || refundOk());
     }
 
     match /groups/{groupId} {
@@ -134,8 +152,8 @@ service cloud.firestore {
           && resource.data.ownerId in request.resource.data.memberIds
           && changedRoles().hasOnly(removedMembers())
           && changedProfiles().hasOnly(removedMembers())
-          && !newRoles().keys().hasAny(removedMembers())
-          && !newProfiles().keys().hasAny(removedMembers())
+          && !removedMembers().hasAny(newRoles().keys())
+          && !removedMembers().hasAny(newProfiles().keys())
           && (wasAdmin() || (wasMember() && removedMembers().hasOnly([uid()])));
       }
 
@@ -229,6 +247,17 @@ service cloud.firestore {
               'color', 'span', 'fontSize', 'header', 'order', 'createdAt', 'authorId'
             ]);
           }
+          // Size limits (keep in sync with src/lib/limits.ts). Rules cannot measure strings
+          // inside arrays, so tasks and cells are limited by count only.
+          function validContent() {
+            let d = request.resource.data;
+            return d.get('text', '') is string && d.get('text', '').size() <= 20000
+              && d.get('title', '') is string && d.get('title', '').size() <= 100
+              && d.get('url', '') is string && d.get('url', '').size() <= 2048
+              && d.get('tasks', []) is list && d.get('tasks', []).size() <= 100
+              && d.get('cells', []) is list && d.get('cells', []).size() <= 200
+              && (!('cols' in d) || (d.cols is number && d.cols >= 1 && d.cols <= 10));
+          }
           // Style edits never change what an image (or any item) is.
           function sameContentKind() {
             return request.resource.data.get('type', '') == resource.data.get('type', '')
@@ -240,8 +269,9 @@ service cloud.firestore {
           // Non-image items may not carry an image payload.
           allow create: if isMember(groupId)
             && allowedKeys()
+            && validContent()
             && (isImage() ? imageAllowed() : !('src' in request.resource.data));
-          allow update: if isMember(groupId) && allowedKeys() && sameContentKind();
+          allow update: if isMember(groupId) && allowedKeys() && validContent() && sameContentKind();
           allow delete: if isMember(groupId);
         }
       }

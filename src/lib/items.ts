@@ -11,7 +11,7 @@ import {
   updateDoc,
   type Timestamp,
 } from 'firebase/firestore'
-import { db } from './firebase'
+import { auth, db } from './firebase'
 import { touchBoard } from './groups'
 import { IMAGE_QUOTA_CHARS, MAX_IMAGE_CHARS } from './usage'
 
@@ -33,6 +33,7 @@ export interface ItemStyle {
   // Manual position. Items without it fall back to their creation time.
   order?: number
   createdAt?: Timestamp
+  authorId?: string
 }
 
 export type Item = (
@@ -106,8 +107,28 @@ export async function updateItem(
   await touchBoard(groupId, boardId)
 }
 
-export async function removeItem(groupId: string, boardId: string, itemId: string) {
-  await deleteDoc(doc(db, 'groups', groupId, 'boards', boardId, 'items', itemId))
+// Deleting your own image gives its size back to your quota, in the same transaction
+// (the rules only accept a decrease that matches the image being deleted).
+export async function removeItem(groupId: string, boardId: string, item: Item) {
+  const itemRef = doc(db, 'groups', groupId, 'boards', boardId, 'items', item.id)
+  const uid = auth.currentUser?.uid
+  if (item.type === 'image' && uid && item.authorId === uid) {
+    const usageRef = doc(db, 'usage', uid)
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(usageRef)
+      const used = snap.exists() ? Number(snap.data().imageBytes) || 0 : 0
+      tx.delete(itemRef)
+      // Images uploaded before the quota existed were never counted: nothing to refund.
+      if (used >= item.src.length) {
+        tx.set(usageRef, {
+          imageBytes: used - item.src.length,
+          lastRemoved: { g: groupId, b: boardId, i: item.id },
+        })
+      }
+    })
+  } else {
+    await deleteDoc(itemRef)
+  }
   await touchBoard(groupId, boardId)
 }
 

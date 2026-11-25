@@ -2,7 +2,7 @@
 
 Collaborative boards for teams. Create a group, invite people with a code, and organize ideas together on boards made of notes, tables and images, synced in real time. Sign in with Google, install it as an app on your phone.
 
-![version](https://img.shields.io/badge/version-0.8.0-2563eb) ![license](https://img.shields.io/badge/license-MIT-green)
+![version](https://img.shields.io/badge/version-0.9.0-2563eb) ![license](https://img.shields.io/badge/license-MIT-green)
 
 ## Features
 
@@ -81,7 +81,17 @@ groups/{groupId}
 
 Images are resized in the browser (up to 800 px, JPEG, recompressed until they fit 400 KB) and stored inside Firestore documents, so no paid storage plan is required.
 
-To protect a free Firebase project, every person has a **lifetime upload quota of about 30 MB** of images (deleting an image does not refund it). The quota is a counter in `usage/{uid}` that the security rules require to grow together with each image, so it cannot be skipped from the client. Change the limits in `firestore.rules` and `src/lib/usage.ts` (keep both in sync). Text, tables and checklists are not counted.
+To protect a free Firebase project, every person has an **image quota of about 30 MB**. Deleting your own image gives its size back. The quota is a counter in `usage/{uid}` that the security rules require to grow together with each image and to shrink only together with the deletion of one of your own images, so it cannot be skipped from the client. Images deleted by someone else (for example an admin deleting a whole board) are not refunded to their author.
+
+Other limits enforced by the rules: notes up to 20,000 characters, titles 100, links 2,048, checklists 100 tasks, tables 200 cells and 10 columns, and items can only contain the fields the app writes. The rules cannot measure the text inside each task or cell, so those are limited in the UI only. Change the numbers in `firestore.rules`, `src/lib/usage.ts` and `src/lib/limits.ts` (keep them in sync). There is no limit on how many groups, boards or items one person can create; for a public deployment consider an email allowlist.
+
+## Tests
+
+The security rules have an automated test suite that runs against the local Firestore emulator (needs Java 11+):
+
+```bash
+npm run test:rules
+```
 
 ## Roadmap
 

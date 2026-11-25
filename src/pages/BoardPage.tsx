@@ -27,6 +27,15 @@ import { boardStamp, setSeen } from '../lib/seen'
 import { renameBoard, roleOf, watchBoard, watchGroup, type Board, type Group } from '../lib/groups'
 import { IMAGE_QUOTA_CHARS, useImageUsage } from '../lib/usage'
 import {
+  MAX_CELLS,
+  MAX_CELL_CHARS,
+  MAX_COLS,
+  MAX_TASKS,
+  MAX_TASK_CHARS,
+  MAX_TEXT_CHARS,
+  MAX_URL_CHARS,
+} from '../lib/limits'
+import {
   COLORS,
   QuotaError,
   addImageItem,
@@ -199,7 +208,7 @@ function ItemCard({ item, groupId, boardId }: { item: Item; groupId: string; boa
           ⠿
         </button>
         <button className="x" aria-label={t('options')} onClick={() => setOpen((o) => !o)}>⚙</button>
-        <button className="x" aria-label={t('delete')} onClick={() => removeItem(groupId, boardId, item.id)}>×</button>
+        <button className="x" aria-label={t('delete')} onClick={() => removeItem(groupId, boardId, item)}>×</button>
       </div>
 
       {open && (
@@ -247,6 +256,7 @@ function ItemCard({ item, groupId, boardId }: { item: Item; groupId: string; boa
       {item.type === 'text' && (
         <textarea
           className={`fs-${fontSize}`}
+          maxLength={MAX_TEXT_CHARS}
           defaultValue={item.text}
           placeholder={t('writePlaceholder')}
           onBlur={(e) => e.target.value !== item.text && save({ text: e.target.value })}
@@ -282,7 +292,7 @@ function ChecklistEditor({
   function onAdd(e: FormEvent) {
     e.preventDefault()
     const text = draft.trim()
-    if (!text) return
+    if (!text || item.tasks.length >= MAX_TASKS) return
     setTasks([...item.tasks, { id: crypto.randomUUID(), text, done: false }])
     setDraft('')
   }
@@ -309,6 +319,7 @@ function ChecklistEditor({
             <input type="checkbox" checked={task.done} onChange={() => patch(task.id, { done: !task.done })} />
             <input
               className="task-text"
+              maxLength={MAX_TASK_CHARS}
               key={task.text}
               defaultValue={task.text}
               onBlur={(e) => {
@@ -329,6 +340,8 @@ function ChecklistEditor({
       <form onSubmit={onAdd}>
         <input
           className="task-new"
+          maxLength={MAX_TASK_CHARS}
+          disabled={item.tasks.length >= MAX_TASKS}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder={t('addTask')}
@@ -387,6 +400,7 @@ function LinkEditor({
           placeholder={t('linkUrlPlaceholder')}
           aria-label={t('linkUrlPlaceholder')}
           inputMode="url"
+          maxLength={MAX_URL_CHARS}
           onChange={(e) => setUrl(e.target.value)}
         />
         <input
@@ -465,6 +479,7 @@ function TableEditor({
                   <td key={c}>
                     <input
                       key={item.cells[i]}
+                      maxLength={MAX_CELL_CHARS}
                       defaultValue={item.cells[i]}
                       onBlur={(e) => setCell(i, e.target.value)}
                     />
@@ -476,8 +491,16 @@ function TableEditor({
         </tbody>
       </table>
       <div className="row">
-        <button className="ghost" onClick={addRow}>{t('addRow')}</button>
-        <button className="ghost" onClick={addCol}>{t('addCol')}</button>
+        <button className="ghost" disabled={(rows + 1) * item.cols > MAX_CELLS} onClick={addRow}>
+          {t('addRow')}
+        </button>
+        <button
+          className="ghost"
+          disabled={item.cols >= MAX_COLS || rows * (item.cols + 1) > MAX_CELLS}
+          onClick={addCol}
+        >
+          {t('addCol')}
+        </button>
       </div>
     </div>
   )
