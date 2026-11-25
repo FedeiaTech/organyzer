@@ -683,3 +683,8 @@ button.task-del:hover {
 .group-member small:last-child {
   margin-left: auto;
 }
+
+.usage {
+  margin-left: 12px;
+  font-size: 0.78rem;
+}

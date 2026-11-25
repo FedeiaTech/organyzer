@@ -25,8 +25,11 @@ import EditableTitle from '../components/EditableTitle'
 import AddMenu from '../components/AddMenu'
 import { boardStamp, setSeen } from '../lib/seen'
 import { renameBoard, roleOf, watchBoard, watchGroup, type Board, type Group } from '../lib/groups'
+import { IMAGE_QUOTA_CHARS, useImageUsage } from '../lib/usage'
 import {
   COLORS,
+  QuotaError,
+  addImageItem,
   addItem,
   fileToResizedDataUrl,
   orderBetween,
@@ -46,6 +49,8 @@ export default function BoardPage() {
   const [items, setItems] = useState<Item[]>([])
   const [board, setBoard] = useState<Board | null>(null)
   const [group, setGroup] = useState<Group | null>(null)
+  const [imageError, setImageError] = useState('')
+  const imageUsed = useImageUsage(user!.uid)
   const fileRef = useRef<HTMLInputElement>(null)
 
   usePresenceHeartbeat(groupId!, user!.uid)
@@ -89,7 +94,13 @@ export default function BoardPage() {
 
   async function onPickImage(file?: File) {
     if (!file) return
-    add({ type: 'image', src: await fileToResizedDataUrl(file) })
+    setImageError('')
+    try {
+      const src = await fileToResizedDataUrl(file)
+      await addImageItem(groupId!, boardId!, src, user!.uid)
+    } catch (e) {
+      setImageError(e instanceof QuotaError ? t('quotaReached') : t('imageFail'))
+    }
     if (fileRef.current) fileRef.current.value = ''
   }
 
@@ -130,6 +141,14 @@ export default function BoardPage() {
         hidden
         onChange={(e) => onPickImage(e.target.files?.[0])}
       />
+
+      <small className="usage muted">
+        {t('imageUsage', {
+          used: (imageUsed / 1_000_000).toFixed(1),
+          max: (IMAGE_QUOTA_CHARS / 1_000_000).toFixed(0),
+        })}
+      </small>
+      {imageError && <p className="error">{imageError}</p>}
 
       {items.length === 0 && <p className="muted">{t('emptyBoard')}</p>}
 

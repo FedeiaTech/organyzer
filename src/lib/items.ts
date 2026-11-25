@@ -6,12 +6,14 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   updateDoc,
   type Timestamp,
 } from 'firebase/firestore'
 import { db } from './firebase'
 import { touchBoard } from './groups'
+import { IMAGE_QUOTA_CHARS, MAX_IMAGE_CHARS } from './usage'
 
 export const COLORS = ['none', 'yellow', 'green', 'blue', 'pink', 'purple', 'orange'] as const
 export type ItemColor = (typeof COLORS)[number]
@@ -42,9 +44,9 @@ export type Item = (
 ) &
   ItemStyle
 
+// Images are not here on purpose: they go through addImageItem, which also charges the quota.
 type NewItem =
   | { type: 'text'; text: string }
-  | { type: 'image'; src: string }
   | { type: 'table'; cols: number; cells: string[] }
   | { type: 'checklist'; tasks: Task[]; title?: string }
   | { type: 'link'; url: string; title?: string }
@@ -67,6 +69,30 @@ export function watchItems(groupId: string, boardId: string, cb: (items: Item[])
 
 export async function addItem(groupId: string, boardId: string, item: NewItem, uid: string) {
   await addDoc(itemsCol(groupId, boardId), { ...item, authorId: uid, createdAt: serverTimestamp() })
+  await touchBoard(groupId, boardId)
+}
+
+export class QuotaError extends Error {}
+
+// Adds an image and charges its size to the uploader's lifetime quota in ONE transaction.
+// The security rules check the same counter, so skipping this function cannot bypass the cap.
+export async function addImageItem(groupId: string, boardId: string, src: string, uid: string) {
+  await runTransaction(db, async (tx) => {
+    const usageRef = doc(db, 'usage', uid)
+    const snap = await tx.get(usageRef)
+    const used = snap.exists() ? Number(snap.data().imageBytes) || 0 : 0
+    const next = used + src.length
+    if (next > IMAGE_QUOTA_CHARS) throw new QuotaError('quota')
+    const itemRef = doc(itemsCol(groupId, boardId))
+    // lastImageId ties this counter increase to exactly one image (checked by the rules).
+    tx.set(usageRef, { imageBytes: next, lastImageId: itemRef.id })
+    tx.set(itemRef, {
+      type: 'image',
+      src,
+      authorId: uid,
+      createdAt: serverTimestamp(),
+    })
+  })
   await touchBoard(groupId, boardId)
 }
 
@@ -93,28 +119,42 @@ export function orderBetween(prev?: Item, next?: Item): number {
   return Date.now()
 }
 
-// Resize in the browser so the data URL stays well under Firestore's 1 MiB doc limit.
+// Resize in the browser and keep lowering quality (then size) until the data URL fits
+// the per-image limit, so it also stays well under Firestore's 1 MiB document limit.
 export function fileToResizedDataUrl(file: File, maxSize = 800, quality = 0.8): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image()
-    const url = URL.createObjectURL(file)
+    const objectUrl = URL.createObjectURL(file)
     img.onload = () => {
-      const scale = Math.min(1, maxSize / Math.max(img.width, img.height))
-      const canvas = document.createElement('canvas')
-      canvas.width = Math.round(img.width * scale)
-      canvas.height = Math.round(img.height * scale)
-      const ctx = canvas.getContext('2d')!
-      // JPEG has no transparency: paint white first so transparent PNGs do not turn black.
-      ctx.fillStyle = '#ffffff'
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-      URL.revokeObjectURL(url)
-      resolve(canvas.toDataURL('image/jpeg', quality))
+      URL.revokeObjectURL(objectUrl)
+      const render = (size: number, q: number) => {
+        const scale = Math.min(1, size / Math.max(img.width, img.height))
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.round(img.width * scale)
+        canvas.height = Math.round(img.height * scale)
+        const ctx = canvas.getContext('2d')!
+        // JPEG has no transparency: paint white first so transparent PNGs do not turn black.
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        return canvas.toDataURL('image/jpeg', q)
+      }
+
+      let size = maxSize
+      let q = quality
+      let out = render(size, q)
+      while (out.length > MAX_IMAGE_CHARS && (q > 0.45 || size > 320)) {
+        if (q > 0.45) q = Math.round((q - 0.1) * 100) / 100
+        else size = Math.round(size * 0.8)
+        out = render(size, q)
+      }
+      if (out.length > MAX_IMAGE_CHARS) reject(new Error('Image too large'))
+      else resolve(out)
     }
     img.onerror = () => {
-      URL.revokeObjectURL(url)
+      URL.revokeObjectURL(objectUrl)
       reject(new Error('Could not read image'))
     }
-    img.src = url
+    img.src = objectUrl
   })
 }

@@ -22,6 +22,23 @@ service cloud.firestore {
             || groupData(groupId).get('roles', {}).get(request.auth.uid, 'guest') == 'admin');
     }
 
+    // Lifetime image-upload counter per person (characters of stored image data).
+    // It can only grow and never past the cap; image items require it to grow with them.
+    match /usage/{userId} {
+      function validUsage() {
+        return request.resource.data.keys().hasOnly(['imageBytes', 'lastImageId'])
+          && (!('lastImageId' in request.resource.data) || request.resource.data.lastImageId is string)
+          && request.resource.data.imageBytes is number
+          && request.resource.data.imageBytes >= 0
+          && request.resource.data.imageBytes <= 30000000;
+      }
+
+      allow read: if signedIn() && userId == request.auth.uid;
+      allow create: if signedIn() && userId == request.auth.uid && validUsage();
+      allow update: if signedIn() && userId == request.auth.uid && validUsage()
+        && request.resource.data.imageBytes >= resource.data.imageBytes;
+    }
+
     match /groups/{groupId} {
 
       // ---- helpers for the group document itself ----
@@ -181,7 +198,51 @@ service cloud.firestore {
 
         // Items: any member (admin or guest) contributes.
         match /items/{itemId} {
-          allow read, write: if isMember(groupId);
+          function isImage() {
+            return request.resource.data.get('type', '') == 'image';
+          }
+          function imageChars() {
+            return request.resource.data.get('src', '').size();
+          }
+          function usagePath() {
+            return /databases/$(database)/documents/usage/$(request.auth.uid);
+          }
+          function usedBefore() {
+            return exists(usagePath()) ? get(usagePath()).data.imageBytes : 0;
+          }
+          // An image must be paid for in the same write: the uploader's lifetime counter
+          // has to grow by at least the image size (and usage/{uid} caps the counter).
+          function imageAllowed() {
+            return request.resource.data.src is string
+              && imageChars() > 0
+              && imageChars() <= 400000
+              && request.resource.data.authorId == request.auth.uid
+              && getAfter(usagePath()).data.imageBytes >= usedBefore() + imageChars()
+              // Only the item named by the counter's lastImageId can ride on this increase,
+              // so one increase can never pay for several images in the same batch.
+              && getAfter(usagePath()).data.get('lastImageId', '') == itemId;
+          }
+          // Items may only contain the fields the app writes (no hidden payloads).
+          function allowedKeys() {
+            return request.resource.data.keys().hasOnly([
+              'type', 'text', 'src', 'cols', 'cells', 'tasks', 'title', 'url',
+              'color', 'span', 'fontSize', 'header', 'order', 'createdAt', 'authorId'
+            ]);
+          }
+          // Style edits never change what an image (or any item) is.
+          function sameContentKind() {
+            return request.resource.data.get('type', '') == resource.data.get('type', '')
+              && request.resource.data.get('src', '') == resource.data.get('src', '')
+              && request.resource.data.get('authorId', '') == resource.data.get('authorId', '');
+          }
+
+          allow read: if isMember(groupId);
+          // Non-image items may not carry an image payload.
+          allow create: if isMember(groupId)
+            && allowedKeys()
+            && (isImage() ? imageAllowed() : !('src' in request.resource.data));
+          allow update: if isMember(groupId) && allowedKeys() && sameContentKind();
+          allow delete: if isMember(groupId);
         }
       }
     }
