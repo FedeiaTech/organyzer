@@ -23,6 +23,7 @@ import { formatDateTime } from '../lib/format'
 import { usePresenceHeartbeat } from '../lib/presence'
 import EditableTitle from '../components/EditableTitle'
 import AddMenu from '../components/AddMenu'
+import { autosize } from '../lib/autosize'
 import { boardStamp, setSeen } from '../lib/seen'
 import { renameBoard, roleOf, watchBoard, watchGroup, type Board, type Group } from '../lib/groups'
 import { IMAGE_QUOTA_CHARS, useImageUsage } from '../lib/usage'
@@ -256,6 +257,9 @@ function ItemCard({ item, groupId, boardId }: { item: Item; groupId: string; boa
       {item.type === 'text' && (
         <textarea
           className={`fs-${fontSize}`}
+          ref={autosize}
+          rows={1}
+          onInput={(e) => autosize(e.currentTarget)}
           maxLength={MAX_TEXT_CHARS}
           defaultValue={item.text}
           placeholder={t('writePlaceholder')}
@@ -317,8 +321,17 @@ function ChecklistEditor({
         {item.tasks.map((task) => (
           <li key={task.id} className={task.done ? 'done' : ''}>
             <input type="checkbox" checked={task.done} onChange={() => patch(task.id, { done: !task.done })} />
-            <input
+            <textarea
               className="task-text"
+              ref={autosize}
+              rows={1}
+              onInput={(e) => autosize(e.currentTarget)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  e.currentTarget.blur()
+                }
+              }}
               maxLength={MAX_TASK_CHARS}
               key={task.text}
               defaultValue={task.text}

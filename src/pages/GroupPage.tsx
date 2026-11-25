@@ -246,7 +246,7 @@ export default function GroupPage() {
       </ul>
 
       {isAdmin && (
-        <form onSubmit={onCreate} className="row">
+        <form onSubmit={onCreate} className="row new-board">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('newBoardName')} />
           <select
             className="template-select"
@@ -263,7 +263,7 @@ export default function GroupPage() {
         </form>
       )}
 
-      <div className="row invite-row">
+      <div className="row invite-row wrap">
         <button onClick={shareInvite}>{linkCopied ? t('linkCopied') : t('shareInvite')}</button>
         <button className="ghost" onClick={copyCode}>{copied ? t('copied') : t('copyInvite')}</button>
       </div>

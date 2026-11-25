@@ -121,13 +121,14 @@ button.ghost {
 
 .item textarea {
   width: 100%;
-  min-height: 120px;
+  min-height: 2.8rem;
+  overflow: hidden;
   padding: 8px;
   border: 0;
   background: transparent;
   color: inherit;
   font: inherit;
-  resize: vertical;
+  resize: none;
   box-sizing: border-box;
 }
 
@@ -450,7 +451,7 @@ button.icon:hover {
 
 .tasks li {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
 }
 
@@ -471,6 +472,13 @@ button.icon:hover {
   font: inherit;
 }
 
+textarea.task-text {
+  resize: none;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
 .task-new {
   width: 100%;
   box-sizing: border-box;
@@ -480,6 +488,7 @@ button.icon:hover {
   width: 18px;
   height: 18px;
   flex: none;
+  margin-top: 9px;
 }
 
 button.task-del {
@@ -688,3 +697,11 @@ button.task-del:hover {
   margin-left: 12px;
   font-size: 0.78rem;
 }
+
+/* ---- new board form and invite buttons: wrap instead of overflowing ---- */
+.row.wrap { flex-wrap: wrap; }
+
+.row.new-board { flex-wrap: wrap; }
+.row.new-board input { flex: 1 1 100%; min-width: 0; }
+.row.new-board .template-select { flex: 1 1 0; max-width: none; min-width: 0; }
+.row.new-board button { flex: none; }
