@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { useI18n } from '../lib/i18n'
-import { createGroup, joinGroup, watchMyGroups, type Group } from '../lib/groups'
+import { createGroup, joinGroup, roleOf, watchMyGroups, type Group } from '../lib/groups'
+import MemberStack, { Avatar } from '../components/MemberStack'
 
 export default function Home() {
   const { user, logOut } = useAuth()
@@ -12,6 +13,7 @@ export default function Home() {
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
   const [invalidCode, setInvalidCode] = useState(false)
+  const [openId, setOpenId] = useState<string | null>(null)
   const firstName = user!.displayName?.trim().split(/\s+/)[0] ?? ''
 
   useEffect(() => watchMyGroups(user!.uid, setGroups), [user])
@@ -61,9 +63,37 @@ export default function Home() {
       <h2>{t('yourGroups')}</h2>
       <ul className="cards">
         {groups.map((g) => (
-          <li key={g.id}>
+          <li key={g.id} className="group-card">
             <Link to={`/g/${g.id}`}>{g.name}</Link>
-            <small>{t(g.memberIds.length === 1 ? 'members_one' : 'members_other', { n: g.memberIds.length })}</small>
+            <span className="group-meta">
+              <MemberStack group={g} />
+              <button
+                className="link"
+                aria-expanded={openId === g.id}
+                onClick={() => setOpenId(openId === g.id ? null : g.id)}
+              >
+                {t(g.memberIds.length === 1 ? 'members_one' : 'members_other', { n: g.memberIds.length })}
+              </button>
+            </span>
+            {openId === g.id && (
+              <div className="group-members" role="list" aria-label={t('membersTitle')}>
+                {g.memberIds.map((id) => {
+                  const profile = g.profiles?.[id]
+                  return (
+                    <div key={id} className="group-member" role="listitem">
+                      <Avatar profile={profile} small />
+                      <span>
+                        {profile?.name || t('unnamed')}{' '}
+                        {id === user!.uid && <small className="muted">{t('you')}</small>}
+                      </span>
+                      <small className="muted">
+                        {id === g.ownerId ? t('creator') : t(`role_${roleOf(g, id)}`)}
+                      </small>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </li>
         ))}
         {groups.length === 0 && <p className="muted">{t('noGroups')}</p>}

@@ -119,6 +119,7 @@ export default function BoardPage() {
           { id: 'text', icon: '📝', label: t('addNote'), onSelect: () => add({ type: 'text', text: '' }) },
           { id: 'checklist', icon: '✅', label: t('addChecklist'), onSelect: () => add({ type: 'checklist', tasks: [] }) },
           { id: 'table', icon: '▦', label: t('addTable'), onSelect: () => add({ type: 'table', cols: 2, cells: ['', '', '', ''] }) },
+          { id: 'link', icon: '🔗', label: t('addLink'), onSelect: () => add({ type: 'link', url: '' }) },
           { id: 'image', icon: '🖼', label: t('addImage'), onSelect: () => fileRef.current?.click() },
         ]}
       />
@@ -238,6 +239,8 @@ function ItemCard({ item, groupId, boardId }: { item: Item; groupId: string; boa
       {item.type === 'table' && <TableEditor item={item} save={save} />}
 
       {item.type === 'checklist' && <ChecklistEditor item={item} save={save} />}
+
+      {item.type === 'link' && <LinkEditor item={item} save={save} />}
     </div>
   )
 }
@@ -312,6 +315,92 @@ function ChecklistEditor({
           placeholder={t('addTask')}
         />
       </form>
+    </div>
+  )
+}
+
+// Always resolves to an http(s) URL or null, so a `javascript:` (or any other) scheme
+// can never reach an href, even if another member wrote it straight into Firestore.
+function normalizeUrl(raw: string): string | null {
+  const text = raw.trim()
+  if (!text) return null
+  try {
+    const url = new URL(/^https?:\/\//i.test(text) ? text : `https://${text}`)
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : null
+  } catch {
+    return null
+  }
+}
+
+function LinkEditor({
+  item,
+  save,
+}: {
+  item: Extract<Item, { type: 'link' }>
+  save: Save
+}) {
+  const { t } = useI18n()
+  const href = normalizeUrl(item.url)
+  const host = href ? new URL(href).hostname.replace(/^www\./, '') : ''
+  const [editing, setEditing] = useState(!href)
+  const [url, setUrl] = useState(item.url)
+  const [title, setTitle] = useState(item.title ?? '')
+  const [invalid, setInvalid] = useState(false)
+
+  function onSubmit(e: FormEvent) {
+    e.preventDefault()
+    const clean = normalizeUrl(url)
+    if (!clean) {
+      setInvalid(true)
+      return
+    }
+    setInvalid(false)
+    save({ url: clean, title: title.trim() })
+    setEditing(false)
+  }
+
+  if (editing || !href) {
+    return (
+      <form className="link-edit" onSubmit={onSubmit}>
+        <input
+          autoFocus={!item.url}
+          value={url}
+          placeholder={t('linkUrlPlaceholder')}
+          aria-label={t('linkUrlPlaceholder')}
+          inputMode="url"
+          onChange={(e) => setUrl(e.target.value)}
+        />
+        <input
+          value={title}
+          maxLength={100}
+          placeholder={t('linkTitlePlaceholder')}
+          aria-label={t('linkTitlePlaceholder')}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+        {invalid && <small className="error">{t('linkInvalid')}</small>}
+        <button type="submit">{t('save')}</button>
+      </form>
+    )
+  }
+
+  return (
+    <div className="link-card">
+      <a href={href} target="_blank" rel="noopener noreferrer">
+        <span className="link-title">{item.title || host}</span>
+        <small className="link-host">{host}</small>
+      </a>
+      <button
+        className="icon"
+        aria-label={t('editLink')}
+        title={t('editLink')}
+        onClick={() => {
+          setUrl(item.url)
+          setTitle(item.title ?? '')
+          setEditing(true)
+        }}
+      >
+        ✎
+      </button>
     </div>
   )
 }

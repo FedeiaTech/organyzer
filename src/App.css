@@ -586,3 +586,100 @@ button.task-del:hover {
 .add-list button:focus-visible {
   background: var(--accent-bg);
 }
+
+/* ---- link item ---- */
+.link-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 64px;
+}
+
+.link-card a {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.link-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.link-host {
+  opacity: 0.6;
+  color: var(--text);
+}
+
+.link-edit {
+  display: grid;
+  gap: 8px;
+  padding-top: 24px;
+}
+
+.link-edit input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #8886;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+/* ---- group cards on the dashboard ---- */
+.cards li.group-card {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.group-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stack {
+  display: inline-flex;
+  align-items: center;
+}
+
+.stack .mini-avatar {
+  border: 2px solid var(--bg);
+  box-sizing: content-box;
+}
+
+.stack .mini-avatar + .mini-avatar {
+  margin-left: -8px;
+}
+
+.stack-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #8883;
+  color: var(--text-h);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.group-members {
+  flex-basis: 100%;
+  display: grid;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid #8884;
+}
+
+.group-member {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.group-member small:last-child {
+  margin-left: auto;
+}
