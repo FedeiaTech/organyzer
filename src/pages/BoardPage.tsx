@@ -178,7 +178,30 @@ export default function BoardPage() {
 function ItemCard({ item, groupId, boardId }: { item: Item; groupId: string; boardId: string }) {
   const { t } = useI18n()
   const [open, setOpen] = useState(false)
+  const cardRef = useRef<HTMLDivElement | null>(null)
   const save: Save = (data) => updateItem(groupId, boardId, item.id, data)
+
+  // A new text size changes line heights: re-fit every auto-growing field.
+  useEffect(() => {
+    cardRef.current?.querySelectorAll('textarea').forEach(autosize)
+  }, [item.fontSize])
+
+  // Tapping anywhere outside this card (or pressing Escape) folds the options away.
+  useEffect(() => {
+    if (!open) return
+    const onOutside = (e: MouseEvent | TouchEvent) => {
+      if (!cardRef.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    document.addEventListener('mousedown', onOutside)
+    document.addEventListener('touchstart', onOutside)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onOutside)
+      document.removeEventListener('touchstart', onOutside)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.id })
 
@@ -188,14 +211,17 @@ function ItemCard({ item, groupId, boardId }: { item: Item; groupId: string; boa
 
   return (
     <div
-      ref={setNodeRef}
+      ref={(el) => {
+        cardRef.current = el
+        setNodeRef(el)
+      }}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.6 : 1,
         zIndex: isDragging ? 2 : undefined,
       }}
-      className={`item c-${color} span-${span}`}
+      className={`item c-${color} span-${span} fs-${fontSize}`}
     >
       <div className="item-actions">
         <button
@@ -234,7 +260,7 @@ function ItemCard({ item, groupId, boardId }: { item: Item; groupId: string; boa
             ))}
           </div>
 
-          {item.type === 'text' && (
+          {item.type !== 'image' && (
             <div className="opt-row" role="group" aria-label={t('textSizeLabel')}>
               {(['s', 'm', 'l'] as const).map((s) => (
                 <button key={s} className={`chip ${fontSize === s ? 'on' : ''}`} onClick={() => save({ fontSize: s })}>
@@ -256,7 +282,6 @@ function ItemCard({ item, groupId, boardId }: { item: Item; groupId: string; boa
 
       {item.type === 'text' && (
         <textarea
-          className={`fs-${fontSize}`}
           ref={autosize}
           rows={1}
           onInput={(e) => autosize(e.currentTarget)}

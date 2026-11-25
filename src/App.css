@@ -231,9 +231,9 @@ button.ghost {
   border-color: var(--brand);
 }
 
-.item textarea.fs-s { font-size: 0.85rem; }
-.item textarea.fs-m { font-size: 1rem; }
-.item textarea.fs-l { font-size: 1.4rem; }
+.item.fs-s { font-size: 0.85rem; }
+.item.fs-m { font-size: 1rem; }
+.item.fs-l { font-size: 1.4rem; }
 
 .item table.with-header tr:first-child td input {
   font-weight: 700;
