@@ -705,3 +705,28 @@ button.task-del:hover {
 .row.new-board input { flex: 1 1 100%; min-width: 0; }
 .row.new-board .template-select { flex: 1 1 0; max-width: none; min-width: 0; }
 .row.new-board button { flex: none; }
+
+/* ---- limits: counters near the cap and the image quota bar ---- */
+.counter {
+  display: block;
+  margin-top: 4px;
+  color: var(--text);
+  opacity: 0.7;
+  font-size: 0.75rem;
+  text-align: right;
+}
+.counter.full { color: #dc2626; opacity: 1; }
+
+.usage-box {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 16px 12px;
+  vertical-align: middle;
+}
+.usage-box progress {
+  width: 140px;
+  height: 6px;
+  accent-color: var(--brand);
+}
+.usage-box progress.warn { accent-color: #dc2626; }

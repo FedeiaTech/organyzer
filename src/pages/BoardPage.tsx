@@ -152,12 +152,19 @@ export default function BoardPage() {
         onChange={(e) => onPickImage(e.target.files?.[0])}
       />
 
-      <small className="usage muted">
-        {t('imageUsage', {
-          used: (imageUsed / 1_000_000).toFixed(1),
-          max: (IMAGE_QUOTA_CHARS / 1_000_000).toFixed(0),
-        })}
-      </small>
+      <div className="usage-box">
+        <progress
+          className={imageUsed >= IMAGE_QUOTA_CHARS * 0.9 ? 'warn' : ''}
+          value={imageUsed}
+          max={IMAGE_QUOTA_CHARS}
+        />
+        <small className="muted">
+          {t('imageUsage', {
+            used: (imageUsed / 1_000_000).toFixed(1),
+            max: (IMAGE_QUOTA_CHARS / 1_000_000).toFixed(0),
+          })}
+        </small>
+      </div>
       {imageError && <p className="error">{imageError}</p>}
 
       {items.length === 0 && <p className="muted">{t('emptyBoard')}</p>}
@@ -178,6 +185,7 @@ export default function BoardPage() {
 function ItemCard({ item, groupId, boardId }: { item: Item; groupId: string; boardId: string }) {
   const { t } = useI18n()
   const [open, setOpen] = useState(false)
+  const [noteLen, setNoteLen] = useState(item.type === 'text' ? item.text.length : 0)
   const cardRef = useRef<HTMLDivElement | null>(null)
   const save: Save = (data) => updateItem(groupId, boardId, item.id, data)
 
@@ -284,12 +292,19 @@ function ItemCard({ item, groupId, boardId }: { item: Item; groupId: string; boa
         <textarea
           ref={autosize}
           rows={1}
-          onInput={(e) => autosize(e.currentTarget)}
+          onInput={(e) => {
+            autosize(e.currentTarget)
+            setNoteLen(e.currentTarget.value.length)
+          }}
           maxLength={MAX_TEXT_CHARS}
           defaultValue={item.text}
           placeholder={t('writePlaceholder')}
           onBlur={(e) => e.target.value !== item.text && save({ text: e.target.value })}
         />
+      )}
+
+      {item.type === 'text' && (
+        <Counter n={noteLen} max={MAX_TEXT_CHARS} label={t('charsCount', { n: noteLen.toLocaleString(), max: MAX_TEXT_CHARS.toLocaleString() })} />
       )}
 
       {item.type === 'image' && <img src={item.src} alt="" />}
@@ -375,6 +390,7 @@ function ChecklistEditor({
           </li>
         ))}
       </ul>
+      <Counter n={item.tasks.length} max={MAX_TASKS} label={t('tasksCount', { n: item.tasks.length, max: MAX_TASKS })} />
       <form onSubmit={onAdd}>
         <input
           className="task-new"
@@ -400,6 +416,34 @@ function normalizeUrl(raw: string): string | null {
   } catch {
     return null
   }
+}
+
+// Shown only when a limit is close (80%+), so it never adds noise while there is plenty of room.
+function Counter({ n, max, label }: { n: number; max: number; label: string }) {
+  if (n < max * 0.8) return null
+  return <small className={`counter ${n >= max ? 'full' : ''}`}>{label}</small>
+}
+
+// A small emoji picked from the address alone: nothing is fetched and nothing leaves the device.
+function siteIcon(href: string): string {
+  const u = new URL(href)
+  const host = u.hostname.replace(/^www\./, '')
+  const path = u.pathname
+  if (host === 'drive.google.com') return /\/folders\//.test(path) ? '📁' : '📎'
+  if (host === 'docs.google.com') {
+    if (path.startsWith('/spreadsheets')) return '📊'
+    if (path.startsWith('/presentation')) return '📽️'
+    if (path.startsWith('/forms')) return '📋'
+    return '📄'
+  }
+  if (host === 'youtube.com' || host.endsWith('.youtube.com') || host === 'youtu.be') return '▶️'
+  if (host === 'maps.google.com' || host === 'maps.app.goo.gl' || (host === 'google.com' && path.startsWith('/maps'))) return '📍'
+  if (host === 'wa.me' || host.endsWith('whatsapp.com')) return '💬'
+  if (host === 'github.com' || host === 'gitlab.com') return '💻'
+  if (host.endsWith('instagram.com') || host.endsWith('facebook.com') || host === 'x.com' || host.endsWith('twitter.com') || host.endsWith('tiktok.com')) return '👥'
+  if (host === 'open.spotify.com') return '🎵'
+  if (/\.pdf$/i.test(path)) return '📕'
+  return '🔗'
 }
 
 function LinkEditor({
@@ -457,7 +501,10 @@ function LinkEditor({
   return (
     <div className="link-card">
       <a href={href} target="_blank" rel="noopener noreferrer">
-        <span className="link-title">{item.title || host}</span>
+        <span className="link-title">
+          <span aria-hidden="true">{siteIcon(href)} </span>
+          {item.title || host}
+        </span>
         <small className="link-host">{host}</small>
       </a>
       <button
@@ -528,6 +575,7 @@ function TableEditor({
           ))}
         </tbody>
       </table>
+      <Counter n={item.cells.length} max={MAX_CELLS} label={t('cellsCount', { n: item.cells.length, max: MAX_CELLS })} />
       <div className="row">
         <button className="ghost" disabled={(rows + 1) * item.cols > MAX_CELLS} onClick={addRow}>
           {t('addRow')}
